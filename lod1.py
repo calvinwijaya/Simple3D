@@ -233,6 +233,7 @@ class CityModelGUI(QWidget):
         self.output_path.clear()
         self.log_console.clear()
 
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = CityModelGUI()
