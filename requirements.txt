@@ -1,0 +1,7 @@
+numpy
+laspy
+cloth-simulation-filter
+rasterio
+geopandas
+rasterstats
+pyqt5

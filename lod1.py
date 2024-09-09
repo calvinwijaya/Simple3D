@@ -7,7 +7,6 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QIcon, QPixmap
 
 # pip install PyQt5
-# pip install pythreejs PyQtWebEngine
 
 class ProcessThread(QThread):
     output_signal = pyqtSignal(str)
