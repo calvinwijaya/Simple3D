@@ -13,8 +13,7 @@ The process is quite simple and straightforward:
 5. Calculate Zonal Statistic from OHM for each building outline
 6. Extrude building outline based on OHM as elevation
 
-# How to Use
-## Data
+# Data
 The main data only consist of 2 data, building outline and point cloud data!
 
 <img src=https://github.com/user-attachments/assets/ff410f04-8dd8-4c33-a735-146448ef4422 alt="drawing" width="500"/>
@@ -24,6 +23,9 @@ Data input used for Simple 3D:
 2. Point Cloud Data, either can be get from Photogrammetry process or UAV LiDAR, you can use *.las format
 3. (Optional) DSM and DTM can become an input if user already have the data or the point cloud is already processed. The DSM and DTM are in *.tif or *.tiff format.
 Thus, from only at least combination of 2 data (BO + Point Cloud or BO + DSM DTM, you choose!), to create 3D City Model by extrud the BO with elevation from OHM (DSM - DTM).
+
+# How to Use
+There are several ways to run the code, by code-based run in virtual environment (conda), by using GUI (although its still not ready in *.exe application), or use it as QGIS plugin (need to configure several library in OSGeo4W Shell).
 
 ## Code-Based
 
