@@ -14,6 +14,7 @@ import os
 from rasterio.features import geometry_mask
 from scipy import ndimage
 import sys
+from sqlalchemy import create_engine
 gdal.UseExceptions()
 gdal.DontUseExceptions()
 
@@ -211,45 +212,57 @@ def zonal_statistics(vector_path, ohm, epsg):
     gdf = gpd.read_file(vector_path)
 
     # Load raster data
-    raster = rasterio.open(ohm)
+    with rasterio.open(ohm) as raster:
     
-    # Define function to compute zonal statistics for each feature
-    def compute_zonal_statistics(vector_data, raster_data):
-        mean_values = []  # List to store mean values
-        # Iterate over vector features
-        for index, feature in vector_data.iterrows():
-            # Extract geometry of the feature
-            geometry = feature.geometry
+        # Define function to compute zonal statistics for each feature
+        def compute_zonal_statistics(vector_data, raster_data):
+            mean_values = []  # List to store mean values
+            # Iterate over vector features
+            for index, feature in vector_data.iterrows():
+                # Extract geometry of the feature
+                geometry = feature.geometry
 
-            # Mask raster with feature geometry
-            mask = geometry_mask([geometry], raster_data.shape, raster_data.transform, invert=True)
+                # Mask raster with feature geometry
+                mask = geometry_mask([geometry], raster_data.shape, raster_data.transform, invert=True)
 
-            # Apply mask to raster data
-            masked_raster = raster_data.read(1, masked=True)
+                # Apply mask to raster data
+                masked_raster = raster_data.read(1, masked=True)
 
-            # Extract values within the masked area
-            values_within_mask = masked_raster[mask]
+                # Extract values within the masked area
+                values_within_mask = masked_raster[mask]
 
-            # Compute statistics (e.g., mean, median)
-            mean_value = np.mean(values_within_mask)
+                # Compute statistics (e.g., mean, median)
+                if values_within_mask.size > 0 and not np.all(np.isnan(values_within_mask)):
+                    mean_value = np.mean(values_within_mask)
+                else:
+                    mean_value = np.nan  # Set to NaN if no valid values
 
-            # Append mean value to the list
-            mean_values.append(mean_value)
+                # Append mean value to the list
+                mean_values.append(mean_value)
 
-        return mean_values
+            return mean_values
 
-    # Compute zonal statistics
-    mean_values = compute_zonal_statistics(gdf, raster)
+        # Compute zonal statistics
+        mean_values = compute_zonal_statistics(gdf, raster)
 
-    # Add the results to the GeoDataFrame
-    gdf['height'] = mean_values
-    gdf.crs = epsg
+        # Add the results to the GeoDataFrame
+        gdf['height'] = mean_values
 
-    # Specify the GeoPackage path
-    geopackage_path = os.path.join(output_folder,'zonal stat.gpkg')
+        # Set CRS
+        gdf.crs = epsg
 
-    # Save the GeoDataFrame to GeoPackage
-    gdf.to_file(geopackage_path, layer='buildings', driver='GPKG')
+        # Specify the GeoPackage path
+        geopackage_path = os.path.join(output_folder,'zonal stat.gpkg')
+
+        # Clean up the data by replacing masked values (NaN) with None
+        # gdf = gdf.applymap(lambda x: None if isinstance(x, np.ma.core.MaskedConstant) else x)
+
+        # Save the GeoDataFrame to GeoPackage
+        gdf.to_file(geopackage_path, layer='buildings', driver='GPKG')
+
+        # Create an SQLAlchemy engine
+        engine = create_engine('postgresql://postgres:1234@localhost:5432/Simple3D')
+        gdf.to_postgis(name='building', con=engine, if_exists='replace', index=False)
 
 def generate_lod1(output):
     #-- read the input footprints
