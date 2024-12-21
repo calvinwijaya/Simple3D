@@ -2,7 +2,7 @@ import argparse
 import numpy as np #pip install numpy
 import laspy #pip install laspy
 import CSF #pip install cloth-simulation-filter
-from osgeo import gdal, gdalconst, osr #conda install gdal
+from osgeo import gdal, gdalconst, osr, ogr #conda install gdal
 import rasterio #pip install rasterio
 import geopandas as gpd #pip install geopandas
 from rasterstats import zonal_stats #pip install rasterstats
@@ -14,7 +14,6 @@ import os
 from rasterio.features import geometry_mask
 from scipy import ndimage
 import sys
-from sqlalchemy import create_engine
 gdal.UseExceptions()
 gdal.DontUseExceptions()
 
@@ -48,7 +47,7 @@ def save_las(result):
     las.blue = result[:, 5]
     las.write(os.path.join(output_folder, "ground.las"))
 
-def csf_filter(input_file):
+def csf_filter(input_file, cloth_resolution, slope):
     # read las file
     data = read_las(input_file)
     xyz = data[:, :3]
@@ -56,8 +55,12 @@ def csf_filter(input_file):
     csf = CSF.CSF()
 
     # prameter settings
-    csf.params.bSloopSmooth = True
-    csf.params.cloth_resolution = 2
+    csf.params.bSloopSmooth = slope
+    csf.params.cloth_resolution = cloth_resolution
+
+    csf.params.time_step = 0.65
+    csf.params.class_threshold = 0.5
+    csf.params.interations = 500
     # more details about parameter: http://ramm.bnu.edu.cn/projects/CSF/download/
 
     csf.setPointCloud(xyz)
@@ -97,7 +100,7 @@ def csf_filter(input_file):
 
     save_las(result)
 
-def create_dem(input_file, output_file, cell_size, epsg):
+def create_dem(input_file, output_file, cell_size, epsg, dem_type):
     # Read point cloud data
     data = read_las(input_file)
 
@@ -116,7 +119,7 @@ def create_dem(input_file, output_file, cell_size, epsg):
     # Create a meshgrid
     X, Y = np.meshgrid(x_grid, y_grid)
 
-    # Binning Minimum Value method
+    # Initialize Z array with NaN values and a count array
     Z = np.full_like(X, fill_value=np.nan, dtype=np.float32)  # Initialize with NaN
     count = np.zeros_like(X, dtype=int)  # Count of points contributing to each cell
     
@@ -128,8 +131,14 @@ def create_dem(input_file, output_file, cell_size, epsg):
         # Ensure that the point is within the valid range of the grid
         if 0 <= row < Z.shape[0] and 0 <= col < Z.shape[1]:
             # Update the Z value and count for each grid cell
-            if np.isnan(Z[row, col]) or z[i] < Z[row, col]:
-                Z[row, col] = z[i]
+            if dem_type == "DTM":
+                # Use minimum value for DTM
+                if np.isnan(Z[row, col]) or z[i] < Z[row, col]:
+                    Z[row, col] = z[i]
+            elif dem_type == "DSM":
+                # Use maximum value for DSM
+                if np.isnan(Z[row, col]) or z[i] > Z[row, col]:
+                    Z[row, col] = z[i]
             count[row, col] += 1
     
     # Interpolate NoData values by averaging neighboring cells
@@ -153,9 +162,9 @@ def create_dem(input_file, output_file, cell_size, epsg):
                     if len(valid_neighbors) > 0:
                         Z[row, col] = np.mean(valid_neighbors)
     
-    # Apply Gaussian smoothing to the resulting DTM
-    sigma = 15.0  # Adjust the standard deviation based on your requirements
-    Z = ndimage.gaussian_filter(Z, sigma=sigma)
+    # # Apply Gaussian smoothing to the resulting DTM
+    # sigma = 15.0  # Adjust the standard deviation based on your requirements
+    # Z = ndimage.gaussian_filter(Z, sigma=sigma)
 
     # Set up the GeoTIFF driver
     driver = gdal.GetDriverByName("GTiff")
@@ -234,6 +243,7 @@ def zonal_statistics(vector_path, ohm, epsg):
                 # Compute statistics (e.g., mean, median)
                 if values_within_mask.size > 0 and not np.all(np.isnan(values_within_mask)):
                     mean_value = np.mean(values_within_mask)
+                    # mean_value = np.max(values_within_mask)
                 else:
                     mean_value = np.nan  # Set to NaN if no valid values
 
@@ -253,16 +263,13 @@ def zonal_statistics(vector_path, ohm, epsg):
 
         # Specify the GeoPackage path
         geopackage_path = os.path.join(output_folder,'zonal stat.gpkg')
+        # geojson_path = os.path.join(output_folder,'zonal stat.geojson')
 
         # Clean up the data by replacing masked values (NaN) with None
         # gdf = gdf.applymap(lambda x: None if isinstance(x, np.ma.core.MaskedConstant) else x)
 
         # Save the GeoDataFrame to GeoPackage
         gdf.to_file(geopackage_path, layer='buildings', driver='GPKG')
-
-        # Create an SQLAlchemy engine
-        engine = create_engine('postgresql://postgres:1234@localhost:5432/Simple3D')
-        gdf.to_postgis(name='building', con=engine, if_exists='replace', index=False)
 
 def generate_lod1(output):
     #-- read the input footprints
@@ -408,9 +415,11 @@ if __name__ == '__main__':
     parser.add_argument('--dsm', type=str, help='File path for DSM (Digital Surface Model)')
     parser.add_argument('--dtm', type=str, help='File path for DTM (Digital Terrain Model)')
     parser.add_argument('--building_outline', type=str, required=True, help='Directory for building vector data')
-    parser.add_argument('--cell_size', type=int, default=1, help='Cell Size for creating DSM and DTM')
+    parser.add_argument('--cell_size', type=float, default=1.0, help='Cell Size for creating DSM and DTM')
+    parser.add_argument('--cloth_resolution', type=float, default=2.0, help='Grid size to cover the terrain')
+    parser.add_argument('--slope', type=bool, default=True, help='Option to process steep slopes')
     parser.add_argument('--epsg', type=int, required=True, help='EPSG code for the data reference system')
-    parser.add_argument('--output', default=dir, help='Output directory to save results')
+    parser.add_argument('--output', type=str, required=True, help='Output directory to save results')
     args = parser.parse_args()
 
     # Validate arguments
@@ -434,13 +443,13 @@ if __name__ == '__main__':
 
     if args.point_cloud:
         print("Filtering Point Cloud")
-        csf_filter(args.point_cloud)
+        csf_filter(args.point_cloud, args.cloth_resolution, args.slope)
 
         print("Generate DTM")
-        create_dem(ground, dtm, args.cell_size, args.epsg)
+        create_dem(ground, dtm, args.cell_size, args.epsg, "DTM")
 
         print("Generate DSM")
-        create_dem(args.point_cloud, dsm, args.cell_size, args.epsg)
+        create_dem(args.point_cloud, dsm, args.cell_size, args.epsg, "DSM")
     else:
         print(f"Using provided DSM: {args.dsm} and DTM: {args.dtm}")
         dsm = args.dsm

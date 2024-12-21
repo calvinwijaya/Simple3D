@@ -3,7 +3,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QVBo
 from PyQt5.QtGui import QIcon
 from lod1 import CityModelGUI
 from digitizer import DigitizerApp
-
+from database import database_gui
+from kml import KMLGeneratorApp
 
 class IntegratedApp(QMainWindow):
     def __init__(self):
@@ -30,6 +31,22 @@ class IntegratedApp(QMainWindow):
         self.digitizer_layout.addWidget(self.digitizer_widget)
         self.digitizer_tab.setLayout(self.digitizer_layout)
         self.tabs.addTab(self.digitizer_tab, "Orthophoto Digitizer")
+
+        # Create the third tab for connect the database
+        self.database_tab = QWidget()
+        self.database_layout = QVBoxLayout()
+        self.database_widget = database_gui()
+        self.database_layout.addWidget(self.database_widget)
+        self.database_tab.setLayout(self.database_layout)
+        self.tabs.addTab(self.database_tab, "Connect Database")
+
+        # Create the fourth tab for export as KML
+        self.kmlgen_tab = QWidget()
+        self.kmlgen_layout = QVBoxLayout()
+        self.kmlgen_widget = KMLGeneratorApp()
+        self.kmlgen_layout.addWidget(self.kmlgen_widget)
+        self.kmlgen_tab.setLayout(self.kmlgen_layout)
+        self.tabs.addTab(self.kmlgen_tab, "Export 3D KML")
         
         # Set the window icon
         self.setWindowIcon(QIcon("ui/logo.png"))

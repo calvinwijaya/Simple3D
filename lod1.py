@@ -2,7 +2,7 @@ import sys
 import subprocess
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QVBoxLayout, 
                              QFileDialog, QTextEdit, QLabel, QHBoxLayout, QLineEdit, 
-                             QWidget)
+                             QWidget, QComboBox, QDoubleSpinBox, QCheckBox)
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QIcon, QPixmap
 
@@ -11,7 +11,7 @@ from PyQt5.QtGui import QIcon, QPixmap
 class ProcessThread(QThread):
     output_signal = pyqtSignal(str)
 
-    def __init__(self, building_outline, point_cloud, dsm, dtm, epsg_code, output_dir):
+    def __init__(self, building_outline, point_cloud, dsm, dtm, epsg_code, output_dir, cloth_resolution, slope, cell_size):
         super().__init__()
         self.building_outline = building_outline
         self.point_cloud = point_cloud
@@ -19,6 +19,9 @@ class ProcessThread(QThread):
         self.dtm = dtm
         self.epsg_code = epsg_code
         self.output_dir = output_dir
+        self.cloth_resolution = cloth_resolution
+        self.slope = slope
+        self.cell_size = cell_size
 
     def run(self):
         # Run the process and capture output
@@ -26,6 +29,12 @@ class ProcessThread(QThread):
         
         if self.point_cloud:
             command.extend(['--point_cloud', self.point_cloud])
+            if self.cloth_resolution is not None:
+                command.extend(['--cloth_resolution', str(self.cloth_resolution)])
+            if self.slope is not None:
+                command.extend(['--slope', str(self.slope)])
+            if self.cell_size is not None:
+                command.extend(['--cell_size', str(self.cell_size)])
         if self.dsm and self.dtm:
             command.extend(['--dsm', self.dsm, '--dtm', self.dtm])
         
@@ -52,6 +61,13 @@ class CityModelGUI(QWidget):
     def initUI(self):
         # Main layout
         layout = QVBoxLayout()
+
+        # Method Selection Dropdown
+        self.method_label = QLabel('Select Input Method:')
+        self.method_combo = QComboBox()
+        self.method_combo.addItem("Use Point Cloud")
+        self.method_combo.addItem("Use DSM & DTM")
+        self.method_combo.currentIndexChanged.connect(self.update_input_visibility)
 
         # Load Building Outline input (GeoJSON or SHP)
         self.geojson_label = QLabel('Load Building Outline (GeoJSON or SHP):')
@@ -113,6 +129,35 @@ class CityModelGUI(QWidget):
         output_layout.addWidget(self.output_path)
         output_layout.addWidget(self.output_btn)
 
+        # Advanced Options
+        self.advanced_options_label = QPushButton('Advanced Options ▼')
+        self.advanced_options_label.setCheckable(True)
+        self.advanced_options_label.setChecked(False)
+        self.advanced_options_label.clicked.connect(self.toggle_advanced_options)
+
+        self.cloth_resolution_label = QLabel('Cloth Resolution:')
+        self.cloth_resolution = QDoubleSpinBox(self)
+        self.cloth_resolution.setValue(2.0)
+
+        self.slope_label = QLabel('Slope Processing:')
+        self.slope_combo = QComboBox()
+        self.slope_combo.addItem("True")
+        self.slope_combo.addItem("False")
+
+        self.cell_size_label = QLabel('Bin Size:')
+        self.cell_size = QDoubleSpinBox(self)
+        self.cell_size.setValue(1.0)
+
+        # Advanced Options Layout
+        advanced_layout = QVBoxLayout()
+        advanced_layout.addWidget(self.advanced_options_label)
+        advanced_layout.addWidget(self.cloth_resolution_label)
+        advanced_layout.addWidget(self.cloth_resolution)
+        advanced_layout.addWidget(self.slope_label)
+        advanced_layout.addWidget(self.slope_combo)
+        advanced_layout.addWidget(self.cell_size_label)
+        advanced_layout.addWidget(self.cell_size)
+
         # Buttons (Start and Replay)
         buttons_layout = QHBoxLayout()
 
@@ -136,6 +181,8 @@ class CityModelGUI(QWidget):
         self.log_console.setReadOnly(True)
 
         # Add widgets to layout
+        layout.addWidget(self.method_label)
+        layout.addWidget(self.method_combo)
         layout.addWidget(self.geojson_label)
         layout.addLayout(geojson_layout)
         layout.addWidget(self.las_label)
@@ -148,6 +195,7 @@ class CityModelGUI(QWidget):
         layout.addWidget(self.epsg_code)
         layout.addWidget(self.output_label)
         layout.addLayout(output_layout)
+        layout.addLayout(advanced_layout)
         layout.addLayout(buttons_layout)
         layout.addWidget(QLabel('Console Log:'))
         layout.addWidget(self.log_console)
@@ -168,8 +216,67 @@ class CityModelGUI(QWidget):
         self.setWindowTitle('LOD1 3D City Model - CityJSON Generator')
         self.setGeometry(100, 100, 800, 800)
 
+        # Hide the advanced options by default
+        self.advanced_options_label.setVisible(False)
+        self.cloth_resolution_label.setVisible(False)
+        self.cloth_resolution.setVisible(False)
+        self.slope_label.setVisible(False)
+        self.slope_combo.setVisible(False)
+        self.cell_size_label.setVisible(False)
+        self.cell_size.setVisible(False)
+
         # Set the window icon
         self.setWindowIcon(QIcon("ui/logo.png"))  # Replace with the path to your logo image
+
+        # Initially update the visibility of the input fields
+        self.update_input_visibility()
+
+        # Hide the advanced options by default
+        self.toggle_advanced_options()
+
+    def toggle_advanced_options(self):
+        is_visible = self.advanced_options_label.isChecked()
+        self.cloth_resolution_label.setVisible(is_visible)
+        self.cloth_resolution.setVisible(is_visible)
+        self.slope_label.setVisible(is_visible)
+        self.slope_combo.setVisible(is_visible)
+        self.cell_size_label.setVisible(is_visible)
+        self.cell_size.setVisible(is_visible)
+
+        # Update the button label to reflect current state
+        self.advanced_options_label.setText('Advanced Options ▼' if not is_visible else 'Advanced Options ▲')
+    
+    def update_input_visibility(self):
+        if self.method_combo.currentText() == "Use Point Cloud":
+            self.las_label.setVisible(True)
+            self.las_path.setVisible(True)
+            self.las_btn.setVisible(True)
+
+            self.dsm_label.setVisible(False)
+            self.dsm_path.setVisible(False)
+            self.dsm_btn.setVisible(False)
+            self.dtm_label.setVisible(False)
+            self.dtm_path.setVisible(False)
+            self.dtm_btn.setVisible(False)
+
+            # Show advanced options button
+            self.advanced_options_label.setVisible(True)
+
+        elif self.method_combo.currentText() == "Use DSM & DTM":
+            self.las_label.setVisible(False)
+            self.las_path.setVisible(False)
+            self.las_btn.setVisible(False)
+
+            self.dsm_label.setVisible(True)
+            self.dsm_path.setVisible(True)
+            self.dsm_btn.setVisible(True)
+            self.dtm_label.setVisible(True)
+            self.dtm_path.setVisible(True)
+            self.dtm_btn.setVisible(True)
+
+            # Hide advanced options button and advanced options themselves
+            self.advanced_options_label.setVisible(False)
+            self.toggle_advanced_options()  # Ensure options are hidden
 
     # Functions for selecting files/directories
     def select_geojson_or_shp(self):
@@ -211,12 +318,24 @@ class CityModelGUI(QWidget):
         epsg_code = self.epsg_code.text()
         output_dir = self.output_path.text()
 
-        if not (point_cloud or (dsm and dtm)):
-            self.log_console.append("Error: Please provide either a point cloud or both DSM and DTM.")
+        cloth_resolution = self.cloth_resolution.value() if point_cloud else None
+        slope = self.slope_combo.currentText() if point_cloud else None
+        cell_size = self.cell_size.value() if point_cloud else None
+
+        if not building_outline or not epsg_code or not output_dir:
+            self.log_console.append("Error: Please fill all required fields.")
+            return
+
+        if self.method_combo.currentText() == "Use Point Cloud" and not point_cloud:
+            self.log_console.append("Error: Please provide a Point Cloud file.")
+            return
+
+        if self.method_combo.currentText() == "Use DSM & DTM" and (not dsm or not dtm):
+            self.log_console.append("Error: Please provide both DSM and DTM files.")
             return
 
         # Start the process in a separate thread
-        self.process_thread = ProcessThread(building_outline, point_cloud, dsm, dtm, epsg_code, output_dir)
+        self.process_thread = ProcessThread(building_outline, point_cloud, dsm, dtm, epsg_code, output_dir, cloth_resolution, slope, cell_size)
         self.process_thread.output_signal.connect(self.update_console_log)
         self.process_thread.start()
 
@@ -232,7 +351,6 @@ class CityModelGUI(QWidget):
         self.epsg_code.clear()
         self.output_path.clear()
         self.log_console.clear()
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
