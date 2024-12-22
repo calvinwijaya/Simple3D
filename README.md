@@ -63,17 +63,17 @@ There are 4 tabs inside Simple3D GUI:
 
 Tab 1: used to create 3D city model LOD1, the user can define and browse directory for building outline, point cloud, DSM, DTM, EPSG, and output directory. At the top of the tab, there are selection method where user can choose to use point cloud or use DSM and DTM.
 
-<img src=https://github.com/user-attachments/assets/80c51071-3452-4ab1-8e66-df5b8b7899ea alt="tab 1" width="500"/>
+<img src=https://github.com/user-attachments/assets/80c51071-3452-4ab1-8e66-df5b8b7899ea alt="tab 1" width="700"/>
 
 Tab 2: used to digitize building outline. The second tab provided loader for orthophoto (in tif format) into the tab, and user can do digitizing on the orthophoto base. After digitizing, user can export or save the polygon into GeoJSON format and called in Tab 1.
 
 <img src=https://github.com/user-attachments/assets/69c9de58-b09b-4bd0-940e-70fd1ff39aef alt="tab 2" width="500"/>
 
-Tab 3: used to
+Tab 3: used to connect Simple3D to PostgreSQL and import the dataset into database. The user need to define username, password, host, port, and the name of database to import the data into database. Ensure the database is exist and has been created previously to import data into database.
 
 <img src=https://github.com/user-attachments/assets/c7b698a1-d51d-44b4-8e0c-896e7fa9e85f alt="tab 3" width="500"/>
 
-Tab 4: used to 
+Tab 4: used to export data from PostgreSQL database into KML data for visualization. This tab inspired by [3DCityDB Importer-Exporter](https://www.3dcitydb.org/3dcitydb/3dimpexp/) where it has tab for visualization export. Simple3D only support KML as format for visualization. The process is done by connect Simple3D first with PostgreSQL database with defining username, password, host, port, and the name of database to export the data inside database into KML format. Then user can use Google Earth to visualize the result.
 
 <img src=https://github.com/user-attachments/assets/1bfa5ca0-118c-46d9-97ba-1816fae340e4 alt="tab 4" width="500"/>
 
