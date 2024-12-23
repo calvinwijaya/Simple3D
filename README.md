@@ -85,11 +85,11 @@ Simple3D also available in QGIS as plugin by install the zip of simple3d.zip, al
 <img src=https://github.com/user-attachments/assets/6da764e4-0101-438b-9444-e07f8c054a0d alt="drawing" width="500"/>
 
 # Using This Code?
-This repository is free to use for educational and academic purposes. It created as project in Digital Photogrammetry course in Department of Geodetic Engineering, Faculty of Engineering, Universitas Gadjah Mada. You can cite my paper in: (not yet published)
+This repository is free to use for educational and academic purposes. It created as my research in Department of Geodetic Engineering, Faculty of Engineering, Universitas Gadjah Mada. You can cite my paper in: (not yet published)
 ```
 @article{,
   title={},
   author={},
   journal={},
-  year={2024}
+  year={}
 }
