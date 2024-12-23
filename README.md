@@ -20,6 +20,8 @@ The main data only consist of 2 data, building outline and point cloud data!
 
 Another option to use is building outline and DEM data (DSM and DTM):
 
+<img src=https://github.com/user-attachments/assets/a497b8a4-263a-4bef-949e-b90b429b18fb alt="data" width="500"/>
+
 Data input used for Simple 3D:
 1. Building outline (BO), either can be get from manual digitizing from Orthophoto or automatic way using AI (SAM, etc.), you can use *.GeoJSON or *.shp format.
 2. Point Cloud Data, either can be get from Photogrammetry process or UAV LiDAR, you can use *.las format
